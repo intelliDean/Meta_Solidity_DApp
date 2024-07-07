@@ -3,92 +3,112 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import {IVesting} from "smart-contract/contracts/IVesting.sol";
+import {VErrors} from "smart-contract/contracts/VErrors.sol";
 
-contract Vesting is Ownable {
-    struct VestingSchedule {
-        uint256 amount;
-        uint256 releaseTime;
+contract Vesting is IVesting, Ownable {
+    IERC20 private orgToken;
+    string[] private roles;
+
+    mapping(string => Schedule) private vestingSchedules;
+    mapping(address => Stakeholder) private stakeholders;
+    mapping(address => bool) private isStakeholderWhitelisted;
+
+    constructor(address owner, IERC20 _tokenAddress) Ownable(owner) {
+        orgToken = _tokenAddress;
     }
 
-    struct Stakeholder {
-        uint256 amount;
-        uint256 releaseTime;
-        bool withdrawn;
+    function addVestingSchedule(
+        string memory _role,
+        uint256 _amount,
+        uint256 _releaseTime
+    ) external {
+        require(tx.origin == owner(), "Only Owner");
+        if (_releaseTime <= block.timestamp)
+            revert VErrors.RELEASE_TIME_MUST_BE_IN_FUTURE(_releaseTime);
+        if (_amount <= 0) revert VErrors.AMOUNT_MUST_BE_ABOVE_ZERO(_amount);
+        if (_scheduleExist(_role)) revert VErrors.SCHEDULED_ALREADY();
+
+        Schedule storage _schedule = vestingSchedules[_role];
+        _schedule.role = _role;
+        _schedule.amount = _amount;
+        _schedule.releaseTime = _releaseTime;
+
+        roles.push(_role);
+        emit VestingScheduled(_role, _amount, _releaseTime);
     }
 
-    IERC20 public token;
-    mapping(string => VestingSchedule) public vestingSchedules;
-    mapping(address => Stakeholder) public stakeholders;
-    mapping(address => string) public stakeholderRoles;
-    mapping(string => mapping(address => bool)) public roleWhitelistedAddresses;
-    mapping(address => uint256) public userBalances;
-    uint256 public contractBalance;
-    string[] public roles;
+    function whitelistAddress(string memory _role, address _stakeholderAddress)
+    external
 
-    event TokensReleased(address indexed beneficiary, uint256 amount);
+    {
+        require(tx.origin == owner(), "Only Owner");
+        if (_stakeholderAddress == address(0))
+            revert VErrors.UNAUTHORIZED_ADDRESS(_stakeholderAddress);
+        if (!_scheduleExist(_role)) revert VErrors.INVALID_ROLE_OR_SCHEDULE(_role);
 
-    constructor(IERC20 _token) Ownable(msg.sender) {
-        token = _token;
+        Stakeholder storage _stakeholder = stakeholders[_stakeholderAddress];
+        Schedule memory schedule = vestingSchedules[_role];
+
+        _stakeholder.stakeholder = _stakeholderAddress;
+        _stakeholder.role = _role;
+        _stakeholder.amount = schedule.amount;
+        _stakeholder.releaseTime = schedule.releaseTime;
+
+        //stakeholder is whitelisted
+        isStakeholderWhitelisted[_stakeholderAddress] = true;
+
+        //the stakeholder is approved to spend on behalf of the contract
+        if (!orgToken.approve(_stakeholderAddress, schedule.amount))
+            revert VErrors.APPROVAL_FAILED();
+
+        emit AddressWhitelisted(_stakeholderAddress, _role);
     }
 
-    function addVestingSchedule(string memory role, uint256 amount, uint256 releaseTime) external onlyOwner {
-        require(releaseTime > block.timestamp, "Release time should be in the future");
-        require(amount > 0, "Amount should be greater than 0");
-        vestingSchedules[role] = VestingSchedule(amount, releaseTime);
-        roles.push(role);
+    function stakeholderClaimBenefit(address _user) external {// will have to take parameter of stakeholder address instead of msg.sender
+        require(tx.origin == _user, "Invalid stakeholder");
+        if (!isStakeholderWhitelisted[_user])
+            revert VErrors.ADDRESS_NOT_WHITELISTED(_user);
+
+        Stakeholder storage _stakeholder = stakeholders[_user];
+
+        if (block.timestamp < _stakeholder.releaseTime)
+            revert VErrors.TOKEN_NOT_VESTED();
+
+        if (_stakeholder.hasWithdrawn) revert VErrors.TOKEN_WITHDRAWN();
+
+        if (_stakeholder.amount <= 0)
+            revert VErrors.INSUFFICIENT_TOKEN_BALANCE(_stakeholder.amount);
+
+        uint256 _amount = orgToken.allowance(address(this), _user);
+        _stakeholder.hasWithdrawn = true;
+        _stakeholder.amount = 0;
+
+        delete stakeholders[_user];
+
+        if (!orgToken.transferFrom(address(this), _user, _amount))
+            revert VErrors.TOKEN_TRANSFER_FAILED();
+
+        emit TokensReleased(
+            msg.sender,
+            _amount,
+            block.timestamp
+        );
     }
 
-    function whitelistAddress(string memory role, address stakeholder) external onlyOwner {
-        require(vestingSchedules[role].amount > 0, "Invalid role or vesting schedule does not exist");
-        roleWhitelistedAddresses[role][stakeholder] = true;
-    }
-
-    function registerStakeholder(string memory role) external {
-        VestingSchedule memory schedule = vestingSchedules[role];
-        require(schedule.amount > 0, "Invalid role or vesting schedule does not exist");
-        require(stakeholders[msg.sender].amount == 0, "Stakeholder already registered");
-
-        // Transfer tokens from user to contract
-        require(token.transferFrom(msg.sender, address(this), schedule.amount), "Token transfer failed");
-
-        stakeholders[msg.sender] = Stakeholder(schedule.amount, schedule.releaseTime, false);
-        stakeholderRoles[msg.sender] = role;
-
-        // Update balances
-        userBalances[msg.sender] += schedule.amount;
-        contractBalance += schedule.amount;
-    }
-
-    function releaseTokens() external {
-        require(roleWhitelistedAddresses[stakeholderRoles[msg.sender]][msg.sender], "Address not whitelisted");
-        Stakeholder storage stakeholder = stakeholders[msg.sender];
-        require(block.timestamp >= stakeholder.releaseTime, "Tokens are not yet vested");
-        require(!stakeholder.withdrawn, "Tokens already withdrawn");
-        require(stakeholder.amount > 0, "No tokens to release");
-
-        stakeholder.withdrawn = true;
-        uint256 amount = stakeholder.amount;
-
-        // Transfer tokens from contract to user
-        require(token.transfer(msg.sender, amount), "Token transfer failed");
-
-        // Update balances
-        userBalances[msg.sender] -= amount;
-        contractBalance -= amount;
-
-        emit TokensReleased(msg.sender, amount);
-    }
-
-    function withdrawRemainingTokens() external onlyOwner {
-        uint256 balance = token.balanceOf(address(this));
-        require(balance > 0, "The contract is empty");
-        token.transfer(owner(), balance);
-
-        // Update contract balance
-        contractBalance = 0;
+    function balanceOf(address _stakeholder) external view returns (uint256) {
+        return orgToken.balanceOf(_stakeholder);
     }
 
     function getRoles() external view returns (string[] memory) {
         return roles;
+    }
+
+    function _scheduleExist(string memory _role) internal view returns (bool) {
+        return vestingSchedules[_role].amount > 0;
+    }
+
+    function getTimeNow() external view returns (uint256) {
+        return block.timestamp;
     }
 }
