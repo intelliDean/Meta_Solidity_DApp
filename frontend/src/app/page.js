@@ -1,443 +1,418 @@
 "use client";
-import { getOrganizationTokenContract, getVestingContract, getVestingFactoryContract } from "@/constants/contracts";
+import { getVestingFactoryContract } from "@/constants/contracts";
 import { getProvider } from "@/constants/providers";
 import { useWeb3ModalAccount, useWeb3ModalProvider } from "@web3modal/ethers/react";
 import { useState } from "react";
 import { ethers } from "ethers";
-import { toast } from "react-toastify";
 
-/**
- * v0 by Vercel.
- * @see https://v0.dev/t/M4NspQG5Ubp
- * Documentation: https://v0.dev/docs#integrating-generated-code-into-your-nextjs-app
- */
 export default function Component() {
-  const { isConnected, address } = useWeb3ModalAccount();
+    const { isConnected, address } = useWeb3ModalAccount();
+    console.log(`Connected Address: ${address}`);
+    const { walletProvider } = useWeb3ModalProvider();
+    const [roles, setRoles] = useState("");
+    const [amounts, setAmounts] = useState("");
+    const [vestingPeriods, setVestingPeriods] = useState("");
+    const [tokenName, setTokenName] = useState("");
+    const [tokenSymbol, setTokenSymbol] = useState("");
+    const [indexOne, setIndexOne] = useState("");
+    const [indexTwo, setIndexTwo] = useState("");
+    const [indexThree, setIndexThree] = useState("");
+    const [role, setRole] = useState("");
+    const [stakeholderAddress, setStakeholderAddress] = useState("");
+    const [balAddress, setBalAddress] = useState("");
+    const [claimAddress, setClaimAddress] = useState("");
+    const readWriteProvider = getProvider(walletProvider);
 
-  const { walletProvider } = useWeb3ModalProvider();
-  const [tokenAddress, setTokenAddress] = useState("");
-  const [vestingAddress, setVestingAddress] = useState("");
+    const checkProvider = () => {
+        if (!readWriteProvider) {
+            alert("Provider not available");
+            return false;
+        }
+        return true;
+    };
 
-  const [roles, setRoles] = useState("");
-  const [amounts, setAmounts] = useState("");
-  const [vestingPeriods, setVestingPeriods] = useState("");
-  const [tokenName, setTokenName] = useState("");
-  const [tokenSymbol, setTokenSymbol] = useState("");
-  const [initialSupply, setInitialSupply] = useState("");
-  const [stakeSelectedRoles, setStakeSelectedRoles] = useState("");
-  const [inputedAddress, setInputedAddress] = useState("");
-  const [whitelistSelectedRoles, setWhitelistSelectedRoles] = useState("");
+    const vestingFactory = async () => {
+        if (!checkProvider()) return;
 
-  const readWriteProvider = getProvider(walletProvider);
+        const signer = await readWriteProvider.getSigner();
+        const vestingFactoryContract = getVestingFactoryContract(signer);
 
-  const vestingFactory = async () => {
-    const signer = readWriteProvider
-      ? await readWriteProvider.getSigner()
-      : null;
-    const vestingContract = getVestingFactoryContract(signer);
+        const rolesArray = roles.split(",").map((r) => r.trim());
+        const amountsArray = amounts.split(",").map((amount) =>
+            ethers.parseEther(amount.trim()));
+        const vestingPeriodsArray = vestingPeriods.split(",").map((period) =>
+            parseInt(period.trim(), 10));
 
-    // Parsing the inputs from the form
-    const rolesArray = roles.split(",").map((role) => role.trim());
-    const amountsArray = amounts
-      .split(",")
-      .map((amount) => ethers.parseEther(amount.trim()));
-    const vestingPeriodsArray = vestingPeriods
-      .split(",")
-      .map((period) => parseInt(period.trim(), 10));
-    const totalSupply = ethers.parseEther(initialSupply.trim());
+        try {
+            const createVestingTx = await vestingFactoryContract.createVestingInstance(
+                rolesArray,
+                amountsArray,
+                vestingPeriodsArray,
+                tokenName,
+                tokenSymbol
+            );
 
-    try {
-      const transaction = await vestingContract.createVestingInstance(
-        rolesArray,
-        amountsArray,
-        vestingPeriodsArray,
-        tokenName,
-        tokenSymbol,
-        totalSupply
-      );
-      await transaction.wait();
+            const receipt = await createVestingTx.wait();
+            console.log(receipt);
+            alert("A new Vesting Contract is deployed successfully");
+        } catch (error) {
+            console.error("Error:", error);
+            alert(`Error: ${error.message}`);
+        }
+    };
 
-      // Fetch the most recent token and vesting contract addresses
-      const tokenContracts = await vestingContract.getTokenContracts();
-      const vestingContracts = await vestingContract.getVestingContracts();
+    const whitelistAddress = async () => {
+        if (!checkProvider()) return;
 
-      const latestTokenAddress = tokenContracts[tokenContracts.length - 1];
-      const latestVestingAddress =
-        vestingContracts[vestingContracts.length - 1];
+        const signer = await readWriteProvider.getSigner();
+        const vestingFactoryContract = getVestingFactoryContract(signer);
 
-      console.log("tokenAddress", latestTokenAddress);
-      console.log("vestingAddress", latestVestingAddress);
+        try {
+            const index = parseInt(indexOne, 10);
+            if (isNaN(index)) {
+                throw new Error("Invalid index value");
+            }
 
-      setTokenAddress(latestTokenAddress);
-      setVestingAddress(latestVestingAddress);
+            if (typeof role !== "string" || !role.trim()) {
+                throw new Error("Role must be a non-empty string");
+            }
 
-      alert(
-        `Token and vesting contracts created successfully! Token Address: ${latestTokenAddress}, Vesting Address: ${latestVestingAddress}`
-      );
-    } catch (error) {
-      console.log("Error handling vestingFactory:", error.message);
-      // replaced toast with alert for displaying error
-      alert(`Error handling vestingFactory: ${error.message}`);
-      throw error;
-    }
-  };
+            if (!ethers.isAddress(stakeholderAddress)) {
+                throw new Error("Invalid Ethereum address");
+            }
 
-  const register = async () => {
-    const signer = readWriteProvider
-      ? await readWriteProvider.getSigner()
-      : null;
+            // Estimate gas before sending the transaction
+            const gasEstimate = await vestingFactoryContract.estimateGas.whitelistAddress(
+                index,
+                role,
+                stakeholderAddress
+            );
+            console.log(`Gas estimate: ${gasEstimate.toString()}`);
 
-    const tokenContract = getOrganizationTokenContract(signer, tokenAddress);
-    const vestingContract = getVestingContract(signer, vestingAddress);
-    try {
-      const { amount, releaseTime } = await vestingContract.vestingSchedules(
-        stakeSelectedRoles
-      );
-      console.log("Amount:", amount);
-      console.log("selectedRoles:", stakeSelectedRoles);
-      const approve = await tokenContract.approve(vestingAddress, amount);
-      const approval = await approve.wait();
+            // Send the transaction with the gas limit
+            const whitelistTx = await vestingFactoryContract.whitelistAddress(
+                index,
+                role,
+                stakeholderAddress,
+                { gasLimit: gasEstimate }
+            );
+            const receipt = await whitelistTx.wait();
 
-      console.log(approval);
-      alert("Approval Successful");
-      if (approval.status === 1) {
-        const tx = await vestingContract.registerStakeholder(
-          stakeSelectedRoles
-        );
-        const receipt = await tx.wait();
+            console.log(receipt);
+            alert("Address whitelisted successfully");
+        } catch (error) {
+            console.error("Error:", error);
+            alert(`Error: ${error.message}`);
+        }
+    };
 
-        console.log(receipt);
-        alert("Stake Registered");
-      } else {
-        console.log("Approval Failed");
-        alert("Approval Failed");
-      }
-    } catch (error) {
-      console.log("Error handling register:", error.message);
-      alert(`Error handling register: ${error.message}`);
-      throw error;
-    }
-  };
+    const stakeholderClaimBenefit = async () => {
+        if (!checkProvider()) return;
 
-  const whiteList = async () => {
-    const signer = readWriteProvider
-      ? await readWriteProvider.getSigner()
-      : null;
+        const signer = await readWriteProvider.getSigner();
+        const vestingFactoryContract = getVestingFactoryContract(signer);
 
-    const vestingContract = getVestingContract(signer, vestingAddress);
-    try {
-      const tx = await vestingContract.whitelistAddress(
-        whitelistSelectedRoles,
-        inputedAddress
-      );
-      const receipt = await tx.wait();
+        try {
+            const claimTx = await vestingFactoryContract.stakeholderClaimBenefit(
+                parseInt(indexTwo, 10),
+                claimAddress
+            );
+            await claimTx.wait();
+            alert("Benefit claimed successfully");
+        } catch (error) {
+            console.error("Error:", error);
+            alert(`Error: ${error.message}`);
+        }
+    };
 
-      console.log("Whitelisted:", inputedAddress);
-      console.log(receipt);
-      alert("Address Whitelisted");
-    } catch (error) {
-      console.log("Error handling whiteList:", error.message);
-      alert(`Error handling whiteList: ${error.message}`);
-      throw error;
-    }
-  };
+    const balanceOf = async () => {
+        if (!checkProvider()) return;
 
-  const withdraw = async () => {
-    const signer = readWriteProvider
-      ? await readWriteProvider.getSigner()
-      : null;
+        const signer = await readWriteProvider.getSigner();
+        const vestingFactoryContract = getVestingFactoryContract(signer);
 
-    const vestingContract = getVestingContract(signer, vestingAddress);
-    try {
-      const tx = await vestingContract.releaseTokens();
-      const receipt = await tx.wait();
+        try {
+            const balance = await vestingFactoryContract.balanceOf(
+                parseInt(indexThree, 10),
+                balAddress
+            );
+            alert(`Balance: ${ethers.formatEther(balance)}`);
+        } catch (error) {
+            console.error("Error:", error);
+            alert(`Error: ${error.message}`);
+        }
+    };
 
-      console.log(receipt);
-      alert("Stake Withdrawn");
-    } catch (error) {
-      console.log("Error handling Withdraw:", error.message);
-      alert(`Error handling Withdraw: ${error.message}`);
-      throw error;
-    }
-  };
-
-  const ownerWithdraw = async () => {
-    const signer = readWriteProvider
-      ? await readWriteProvider.getSigner()
-      : null;
-
-    const vestingContract = getVestingContract(signer, vestingAddress);
-    try {
-      const tx = await vestingContract.withdrawRemainingTokens();
-      const receipt = await tx.wait();
-
-      console.log(receipt);
-      alert("Contract Drained");
-    } catch (error) {
-      console.log("Error handling Withdraw:", error.message);
-      alert(`Error handling Withdraw: ${error.message}`);
-      throw error;
-    }
-  };
-
-  return (
-    <>
-      <header className="bg-white shadow-md">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center">
-            <h1 className="text-2xl font-bold">Admin Factory Contract</h1>
-          </div>
-          <div>
-            <w3m-button />
-          </div>
-        </div>
-      </header>
-      {isConnected ? (
-        <main className="container mx-auto my-12 px-4 sm:px-6 lg:px-8">
-          <section className="mb-12">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <form className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label
-                    className="block font-medium text-gray-700 mb-2"
-                    htmlFor="roles"
-                  >
-                    Roles
-                  </label>
-                  <input
-                    className="border-gray-300 text-gray-600 rounded-md shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 w-full"
-                    id="roles"
-                    name="roles"
-                    placeholder="community, investor, pre-sale buyer, team"
-                    type="text"
-                    value={roles}
-                    onChange={(e) => setRoles(e.target.value)}
-                  />
+    return (
+        <>
+            <header className="bg-white shadow-md">
+                <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+                    <div className="flex items-center">
+                        <h1 className="text-2xl font-bold text-black">Vesting Factory Contract</h1>
+                    </div>
+                    <div>
+                        <w3m-button />
+                    </div>
                 </div>
-                <div>
-                  <label
-                    className="block font-medium text-gray-700 mb-2"
-                    htmlFor="amounts"
-                  >
-                    Amounts
-                  </label>
-                  <input
-                    className="border-gray-300 text-gray-600 rounded-md shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 w-full"
-                    id="amounts"
-                    name="amounts"
-                    placeholder="1000, 500, 250"
-                    type="text"
-                    value={amounts}
-                    onChange={(e) => setAmounts(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label
-                    className="block font-medium text-gray-700 mb-2"
-                    htmlFor="vestingPeriods"
-                  >
-                    Vesting Periods
-                  </label>
-                  <input
-                    className="border-gray-300 text-gray-600 rounded-md shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 w-full"
-                    id="vestingPeriods"
-                    name="vestingPeriods"
-                    placeholder="12, 6, 3"
-                    type="text"
-                    value={vestingPeriods}
-                    onChange={(e) => setVestingPeriods(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label
-                    className="block font-medium text-gray-700 mb-2"
-                    htmlFor="tokenName"
-                  >
-                    Token Name
-                  </label>
-                  <input
-                    className="border-gray-300 text-gray-600 rounded-md shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 w-full"
-                    id="tokenName"
-                    name="tokenName"
-                    placeholder="My Token"
-                    type="text"
-                    value={tokenName}
-                    onChange={(e) => setTokenName(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label
-                    className="block font-medium text-gray-700 mb-2"
-                    htmlFor="tokenSymbol"
-                  >
-                    Token Symbol
-                  </label>
-                  <input
-                    className="border-gray-300 text-gray-600 rounded-md shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 w-full"
-                    id="tokenSymbol"
-                    name="tokenSymbol"
-                    placeholder="MTK"
-                    type="text"
-                    value={tokenSymbol}
-                    onChange={(e) => setTokenSymbol(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label
-                    className="block font-medium text-gray-700 mb-2"
-                    htmlFor="initialSupply"
-                  >
-                    Total Supply
-                  </label>
-                  <input
-                    className="border-gray-300 text-gray-600 rounded-md shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 w-full"
-                    id="initialSupply"
-                    name="initialSupply"
-                    placeholder="1000000"
-                    type="number"
-                    value={initialSupply}
-                    onChange={(e) => setInitialSupply(e.target.value)}
-                  />
-                </div>
-              </form>
-              <div className="mt-6 flex justify-end">
-                <button
-                  className="bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-2 px-4 rounded-md"
-                  onClick={vestingFactory}
-                >
-                  Create Organization Contract
-                </button>
-              </div>
-            </div>
-          </section>
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold mb-4">User Registration</h2>
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <form className="grid grid-cols-1 gap-6">
-                <div>
-                  <label
-                    className="block font-medium text-gray-700 mb-2"
-                    htmlFor="role"
-                  >
-                    User Role
-                  </label>
-                  <select
-                    className="border-gray-300 text-gray-600 rounded-md shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 w-full"
-                    id="role"
-                    name="role"
-                    value={stakeSelectedRoles}
-                    onChange={(e) => setStakeSelectedRoles(e.target.value)}
-                  >
-                    <option value="">Select a role</option>
-                    <option value="community">Community</option>
-                    <option value="investor">Investor</option>
-                    <option value="pre-sale buyer">Pre-Sale Buyer</option>
-                    <option value="team">Team</option>
-                  </select>
-                </div>
-              </form>
-              <div className="mt-6 flex justify-end">
-                <button
-                  className="bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-2 px-4 rounded-md"
-                  onClick={register}
-                >
-                  Stake
-                </button>
-              </div>
-            </div>
-          </section>
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold mb-4">Whitelist Stakeholder</h2>
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <form className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label
-                    className="block font-medium text-gray-700 mb-2"
-                    htmlFor="role"
-                  >
-                    Role
-                  </label>
-                  <select
-                    className="border-gray-300 text-gray-600 rounded-md shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 w-full"
-                    id="role"
-                    name="role"
-                    value={whitelistSelectedRoles}
-                    onChange={(e) => setWhitelistSelectedRoles(e.target.value)}
-                  >
-                    <option value="">Select a role</option>
-                    <option value="community">Community</option>
-                    <option value="investor">Investor</option>
-                    <option value="pre-sale buyer">Pre-Sale Buyer</option>
-                    <option value="team">Team</option>
-                  </select>
-                </div>
-                <div>
-                  <label
-                    className="block font-medium text-gray-700 mb-2"
-                    htmlFor="address"
-                  >
-                    Address
-                  </label>
-                  <input
-                    className="border-gray-300 text-gray-600 rounded-md shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 w-full"
-                    id="address"
-                    name="address"
-                    placeholder="0x123456789..."
-                    type="text"
-                    value={inputedAddress}
-                    onChange={(e) => setInputedAddress(e.target.value)}
-                  />
-                </div>
-              </form>
-              <div className="mt-6 flex justify-end">
-                <button
-                  className="bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-2 px-4 rounded-md"
-                  onClick={whiteList}
-                >
-                  Whitelist
-                </button>
-              </div>
-            </div>
-          </section>
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold mb-4">User Withdrawal</h2>
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex justify-end">
-                <button
-                  className="bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-2 px-4 rounded-md"
-                  onClick={withdraw}
-                >
-                  Remove Stake
-                </button>
-              </div>
-            </div>
-          </section>
-          <section>
-            <h2 className="text-2xl font-bold mb-4">Owner Withdrawal</h2>
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex justify-end">
-                <button
-                  className="bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-2 px-4 rounded-md"
-                  onClick={ownerWithdraw}
-                >
-                  Drain Contract
-                </button>
-              </div>
-            </div>
-          </section>
-        </main>
-      ) : (
-        <main className="container mx-auto my-12 px-4 sm:px-6 lg:px-8">
-          <section className="mb-12">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-2xl font-bold mb-4">Connect to a Wallet</h2>
-              <p className="text-gray-700 mb-4">
-                To use this application, you need to connect to a wallet.
-              </p>
-            </div>
-          </section>
-        </main>
-      )}
-    </>
-  );
+            </header>
+            {isConnected ? (
+                <main className="container mx-auto my-12 px-4 sm:px-6 lg:px-8">
+                    <section className="mb-12">
+                        <div className="bg-white rounded-lg shadow-md p-6">
+                            <form className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block font-medium text-gray-700 mb-2" htmlFor="roles">
+                                        Stakeholder
+                                    </label>
+                                    <input
+                                        className="border-gray-300 text-gray-600 rounded-md shadow-sm
+                                        focus:border-indigo-500 focus:ring focus:ring-indigo-200
+                                        focus:ring-opacity-50 w-full h-9"
+                                        id="roles"
+                                        name="roles"
+                                        placeholder="Investor, Manager, Engineer"
+                                        type="text"
+                                        value={roles}
+                                        onChange={(e) => setRoles(e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block font-medium text-gray-700 mb-2" htmlFor="amounts">
+                                        Amounts
+                                    </label>
+                                    <input
+                                        className="border-gray-300 text-gray-600 rounded-md shadow-sm
+                                        focus:border-indigo-500 focus:ring focus:ring-indigo-200
+                                        focus:ring-opacity-50 w-full h-9"
+                                        id="amounts"
+                                        name="amounts"
+                                        placeholder="1000, 500, 250"
+                                        type="text"
+                                        value={amounts}
+                                        onChange={(e) => setAmounts(e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block font-medium text-gray-700 mb-2" htmlFor="vestingPeriods">
+                                        Vesting Periods
+                                    </label>
+                                    <input
+                                        className="border-gray-300 text-gray-600 rounded-md shadow-sm
+                                        focus:border-indigo-500 focus:ring focus:ring-indigo-200
+                                        focus:ring-opacity-50 w-full h-9"
+                                        id="vestingPeriods"
+                                        name="vestingPeriods"
+                                        placeholder="12, 6, 3"
+                                        type="text"
+                                        value={vestingPeriods}
+                                        onChange={(e) => setVestingPeriods(e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block font-medium text-gray-700 mb-2" htmlFor="tokenName">
+                                        Token Name
+                                    </label>
+                                    <input
+                                        className="border-gray-300 text-gray-600 rounded-md shadow-sm
+                                        focus:border-indigo-500 focus:ring focus:ring-indigo-200
+                                        focus:ring-opacity-50 w-full h-9"
+                                        id="tokenName"
+                                        name="tokenName"
+                                        placeholder="My Token"
+                                        type="text"
+                                        value={tokenName}
+                                        onChange={(e) => setTokenName(e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block font-medium text-gray-700 mb-2" htmlFor="tokenSymbol">
+                                        Token Symbol
+                                    </label>
+                                    <input
+                                        className="border-gray-300 text-gray-600 rounded-md shadow-sm
+                                        focus:border-indigo-500 focus:ring focus:ring-indigo-200
+                                        focus:ring-opacity-50 w-full h-9"
+                                        id="tokenSymbol"
+                                        name="tokenSymbol"
+                                        placeholder="MTK"
+                                        type="text"
+                                        value={tokenSymbol}
+                                        onChange={(e) => setTokenSymbol(e.target.value)}
+                                    />
+                                </div>
+                            </form>
+                            <div className="mt-6 flex justify-end">
+                                <button
+                                    className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-md shadow-md"
+                                    onClick={vestingFactory}
+                                >
+                                    Create Vesting
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+                    <section className="mb-12">
+                        <div className="bg-white rounded-lg shadow-md p-6">
+                            <form className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block font-medium text-gray-700 mb-2" htmlFor="indexOne">
+                                        Index
+                                    </label>
+                                    <input
+                                        className="border-gray-300 text-gray-600 rounded-md shadow-sm
+                                        focus:border-indigo-500 focus:ring focus:ring-indigo-200
+                                        focus:ring-opacity-50 w-full h-9"
+                                        id="indexOne"
+                                        name="indexOne"
+                                        placeholder="0"
+                                        type="text"
+                                        value={indexOne}
+                                        onChange={(e) => setIndexOne(e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block font-medium text-gray-700 mb-2" htmlFor="role">
+                                        Role
+                                    </label>
+                                    <input
+                                        className="border-gray-300 text-gray-600 rounded-md shadow-sm
+                                        focus:border-indigo-500 focus:ring focus:ring-indigo-200
+                                        focus:ring-opacity-50 w-full h-9"
+                                        id="role"
+                                        name="role"
+                                        placeholder="Investor"
+                                        type="text"
+                                        value={role}
+                                        onChange={(e) => setRole(e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block font-medium text-gray-700 mb-2" htmlFor="stakeholderAddress">
+                                        Stakeholder Address
+                                    </label>
+                                    <input
+                                        className="border-gray-300 text-gray-600 rounded-md shadow-sm
+                                        focus:border-indigo-500 focus:ring focus:ring-indigo-200
+                                        focus:ring-opacity-50 w-full h-9"
+                                        id="stakeholderAddress"
+                                        name="stakeholderAddress"
+                                        placeholder="0xabc123..."
+                                        type="text"
+                                        value={stakeholderAddress}
+                                        onChange={(e) => setStakeholderAddress(e.target.value)}
+                                    />
+                                </div>
+                            </form>
+                            <div className="mt-6 flex justify-end">
+                                <button
+                                    className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-md shadow-md"
+                                    onClick={whitelistAddress}
+                                >
+                                    Whitelist Address
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+                    <section className="mb-12">
+                        <div className="bg-white rounded-lg shadow-md p-6">
+                            <form className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block font-medium text-gray-700 mb-2" htmlFor="indexTwo">
+                                        Index
+                                    </label>
+                                    <input
+                                        className="border-gray-300 text-gray-600 rounded-md shadow-sm
+                                        focus:border-indigo-500 focus:ring focus:ring-indigo-200
+                                        focus:ring-opacity-50 w-full h-9"
+                                        id="indexTwo"
+                                        name="indexTwo"
+                                        placeholder="0"
+                                        type="text"
+                                        value={indexTwo}
+                                        onChange={(e) => setIndexTwo(e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block font-medium text-gray-700 mb-2" htmlFor="claimAddress">
+                                        Claim Address
+                                    </label>
+                                    <input
+                                        className="border-gray-300 text-gray-600 rounded-md shadow-sm
+                                        focus:border-indigo-500 focus:ring focus:ring-indigo-200
+                                        focus:ring-opacity-50 w-full h-9"
+                                        id="claimAddress"
+                                        name="claimAddress"
+                                        placeholder="0xabc123..."
+                                        type="text"
+                                        value={claimAddress}
+                                        onChange={(e) => setClaimAddress(e.target.value)}
+                                    />
+                                </div>
+                            </form>
+                            <div className="mt-6 flex justify-end">
+                                <button
+                                    className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-md shadow-md"
+                                    onClick={stakeholderClaimBenefit}
+                                >
+                                    Claim Benefit
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+                    <section>
+                        <div className="bg-white rounded-lg shadow-md p-6">
+                            <form className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block font-medium text-gray-700 mb-2" htmlFor="indexThree">
+                                        Index
+                                    </label>
+                                    <input
+                                        className="border-gray-300 text-gray-600 rounded-md shadow-sm
+                                        focus:border-indigo-500 focus:ring focus:ring-indigo-200
+                                        focus:ring-opacity-50 w-full h-9"
+                                        id="indexThree"
+                                        name="indexThree"
+                                        placeholder="0"
+                                        type="text"
+                                        value={indexThree}
+                                        onChange={(e) => setIndexThree(e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block font-medium text-gray-700 mb-2" htmlFor="balAddress">
+                                        Balance Address
+                                    </label>
+                                    <input
+                                        className="border-gray-300 text-gray-600 rounded-md shadow-sm
+                                        focus:border-indigo-500 focus:ring focus:ring-indigo-200
+                                        focus:ring-opacity-50 w-full h-9"
+                                        id="balAddress"
+                                        name="balAddress"
+                                        placeholder="0xabc123..."
+                                        type="text"
+                                        value={balAddress}
+                                        onChange={(e) => setBalAddress(e.target.value)}
+                                    />
+                                </div>
+                            </form>
+                            <div className="mt-6 flex justify-end">
+                                <button
+                                    className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-md shadow-md"
+                                    onClick={balanceOf}
+                                >
+                                    Check Balance
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+                </main>
+            ) : (
+                <main className="container mx-auto my-12 px-4 sm:px-6 lg:px-8">
+                    <div className="bg-white rounded-lg shadow-md p-6">
+                        <p className="text-center text-gray-500">Please connect your wallet to use the application.</p>
+                    </div>
+                </main>
+            )}
+        </>
+    );
 }

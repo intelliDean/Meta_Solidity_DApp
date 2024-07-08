@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "smart-contract/contracts/Vesting.sol";
-import "smart-contract/contracts/OrganizationToken.sol";
+import "./Vesting.sol";
+import "./OrganizationToken.sol";
+import "./VErrors.sol";
+import "./IVesting.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import {VErrors} from "smart-contract/contracts/VErrors.sol";
-import {IVesting} from "smart-contract/contracts/IVesting.sol";
 
 contract VestingFactory is  VErrors, Ownable {
 

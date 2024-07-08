@@ -3,8 +3,8 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import {IVesting} from "smart-contract/contracts/IVesting.sol";
-import {VErrors} from "smart-contract/contracts/VErrors.sol";
+import "./IVesting.sol";
+import  "./VErrors.sol";
 
 contract Vesting is IVesting, Ownable {
     IERC20 private orgToken;
