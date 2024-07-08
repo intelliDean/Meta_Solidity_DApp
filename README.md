@@ -7,7 +7,7 @@ This Solidity program is a full stack "Vesting contract" application that implem
 This program consists of a set of smart contracts written in Solidity, a programming language used for developing smart contracts on the Ethereum blockchain. The main contract is a factory contract that deploys new instances of a child vesting contract. Individuals can use these contracts to create vesting plans on behalf of their company’s staff or stakeholders. The contract implements a time lock system, which prevents users from withdrawing vested tokens before the allocated unlock time.
 
 ## CONTRACT ADDRESSES (SEPOLIA)
-FACTORY CONTRACT: 0xC5cc660Af50Bf0538452F5ac02B337d38D0a2BeD;
+FACTORY CONTRACT: 0x279Bc00CB4197C7693D1121EEE26DF1B93b154E8;
 
 ### Executing program
 #### STEP 1
