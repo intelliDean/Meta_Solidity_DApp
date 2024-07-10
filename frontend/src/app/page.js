@@ -1,13 +1,14 @@
 "use client";
-import { getVestingFactoryContract } from "@/constants/contracts";
-import { getProvider } from "@/constants/providers";
-import { useWeb3ModalAccount, useWeb3ModalProvider } from "@web3modal/ethers/react";
-import { useState } from "react";
-import { ethers } from "ethers";
+import {getVestingFactoryContract} from "@/constants/contracts";
+import {getProvider, wssProvider, readOnlyProvider} from "@/constants/providers";
+import {useWeb3ModalAccount, useWeb3ModalProvider} from "@web3modal/ethers/react";
+import {useState} from "react";
+import {ethers} from "ethers";
 
 export default function Component() {
-    const { isConnected, address } = useWeb3ModalAccount();
+    const {isConnected, address} = useWeb3ModalAccount();
     console.log(`Connected Address: ${address}`);
+
     const { walletProvider } = useWeb3ModalProvider();
     const [roles, setRoles] = useState("");
     const [amounts, setAmounts] = useState("");
@@ -21,8 +22,8 @@ export default function Component() {
     const [stakeholderAddress, setStakeholderAddress] = useState("");
     const [balAddress, setBalAddress] = useState("");
     const [claimAddress, setClaimAddress] = useState("");
-    const readWriteProvider = getProvider(walletProvider);
 
+    const readWriteProvider = getProvider(walletProvider);
     const checkProvider = () => {
         if (!readWriteProvider) {
             alert("Provider not available");
@@ -39,7 +40,7 @@ export default function Component() {
 
         const rolesArray = roles.split(",").map((r) => r.trim());
         const amountsArray = amounts.split(",").map((amount) =>
-            ethers.parseEther(amount.trim()));
+            parseInt(amount.trim(), 10));
         const vestingPeriodsArray = vestingPeriods.split(",").map((period) =>
             parseInt(period.trim(), 10));
 
@@ -94,7 +95,7 @@ export default function Component() {
                 index,
                 role,
                 stakeholderAddress,
-                { gasLimit: gasEstimate }
+                {gasLimit: gasEstimate}
             );
             const receipt = await whitelistTx.wait();
 
@@ -136,7 +137,7 @@ export default function Component() {
                 parseInt(indexThree, 10),
                 balAddress
             );
-            alert(`Balance: ${ethers.formatEther(balance)}`);
+            alert(`Balance: ${balance}`);
         } catch (error) {
             console.error("Error:", error);
             alert(`Error: ${error.message}`);
@@ -151,17 +152,22 @@ export default function Component() {
                         <h1 className="text-2xl font-bold text-black">Vesting Factory Contract</h1>
                     </div>
                     <div>
-                        <w3m-button />
+                        <w3m-button/>
                     </div>
                 </div>
             </header>
             {isConnected ? (
                 <main className="container mx-auto my-12 px-4 sm:px-6 lg:px-8">
+
+
                     <section className="mb-12">
                         <div className="bg-white rounded-lg shadow-md p-6">
                             <form className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block font-medium text-gray-700 mb-2" htmlFor="roles">
+                                    <label
+                                        className="block font-medium text-gray-700 mb-2"
+                                        htmlFor="roles"
+                                    >
                                         Stakeholder
                                     </label>
                                     <input
@@ -173,11 +179,15 @@ export default function Component() {
                                         placeholder="Investor, Manager, Engineer"
                                         type="text"
                                         value={roles}
-                                        onChange={(e) => setRoles(e.target.value)}
+                                        onChange={(e) =>
+                                            setRoles(e.target.value)}
                                     />
                                 </div>
                                 <div>
-                                    <label className="block font-medium text-gray-700 mb-2" htmlFor="amounts">
+                                    <label
+                                        className="block font-medium text-gray-700 mb-2"
+                                        htmlFor="amounts"
+                                    >
                                         Amounts
                                     </label>
                                     <input
@@ -189,11 +199,15 @@ export default function Component() {
                                         placeholder="1000, 500, 250"
                                         type="text"
                                         value={amounts}
-                                        onChange={(e) => setAmounts(e.target.value)}
+                                        onChange={(e) =>
+                                            setAmounts(e.target.value)}
                                     />
                                 </div>
                                 <div>
-                                    <label className="block font-medium text-gray-700 mb-2" htmlFor="vestingPeriods">
+                                    <label
+                                        className="block font-medium text-gray-700 mb-2"
+                                        htmlFor="vestingPeriods"
+                                    >
                                         Vesting Periods
                                     </label>
                                     <input
@@ -205,11 +219,15 @@ export default function Component() {
                                         placeholder="12, 6, 3"
                                         type="text"
                                         value={vestingPeriods}
-                                        onChange={(e) => setVestingPeriods(e.target.value)}
+                                        onChange={(e) =>
+                                            setVestingPeriods(e.target.value)}
                                     />
                                 </div>
                                 <div>
-                                    <label className="block font-medium text-gray-700 mb-2" htmlFor="tokenName">
+                                    <label
+                                        className="block font-medium text-gray-700 mb-2"
+                                        htmlFor="tokenName"
+                                    >
                                         Token Name
                                     </label>
                                     <input
@@ -221,11 +239,15 @@ export default function Component() {
                                         placeholder="My Token"
                                         type="text"
                                         value={tokenName}
-                                        onChange={(e) => setTokenName(e.target.value)}
+                                        onChange={(e) =>
+                                            setTokenName(e.target.value)}
                                     />
                                 </div>
                                 <div>
-                                    <label className="block font-medium text-gray-700 mb-2" htmlFor="tokenSymbol">
+                                    <label
+                                        className="block font-medium text-gray-700 mb-2"
+                                        htmlFor="tokenSymbol"
+                                    >
                                         Token Symbol
                                     </label>
                                     <input
@@ -237,121 +259,152 @@ export default function Component() {
                                         placeholder="MTK"
                                         type="text"
                                         value={tokenSymbol}
-                                        onChange={(e) => setTokenSymbol(e.target.value)}
+                                        onChange={(e) =>
+                                            setTokenSymbol(e.target.value)}
                                     />
                                 </div>
                             </form>
                             <div className="mt-6 flex justify-end">
                                 <button
-                                    className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-md shadow-md"
+                                    className="bg-indigo-500 hover:bg-indigo-600
+                                    text-white font-medium py-2 px-4 rounded-md"
                                     onClick={vestingFactory}
                                 >
-                                    Create Vesting
+                                    Create Organization Vesting
                                 </button>
                             </div>
                         </div>
                     </section>
                     <section className="mb-12">
+                        <h2 className="text-2xl font-bold mb-4">Whitelist Stakeholder</h2>
                         <div className="bg-white rounded-lg shadow-md p-6">
-                            <form className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <form className="grid grid-cols-1 gap-6">
                                 <div>
-                                    <label className="block font-medium text-gray-700 mb-2" htmlFor="indexOne">
-                                        Index
+                                    <label
+                                        className="block font-medium text-gray-700 mb-2"
+                                        htmlFor="indexOne"
+                                    >
+                                        Contract Index
                                     </label>
                                     <input
-                                        className="border-gray-300 text-gray-600 rounded-md shadow-sm
-                                        focus:border-indigo-500 focus:ring focus:ring-indigo-200
+                                        className="border-gray-300 text-gray-600 rounded-md
+                                        shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200
                                         focus:ring-opacity-50 w-full h-9"
                                         id="indexOne"
                                         name="indexOne"
                                         placeholder="0"
-                                        type="text"
+                                        type="number"
                                         value={indexOne}
-                                        onChange={(e) => setIndexOne(e.target.value)}
+                                        onChange={(e) =>
+                                            setIndexOne(e.target.value)}
                                     />
                                 </div>
                                 <div>
-                                    <label className="block font-medium text-gray-700 mb-2" htmlFor="role">
-                                        Role
+                                    <label
+                                        className="block font-medium text-gray-700 mb-2"
+                                        htmlFor="role"
+                                    >
+                                        Stakeholder Role
                                     </label>
-                                    <input
+                                    <select
                                         className="border-gray-300 text-gray-600 rounded-md shadow-sm
                                         focus:border-indigo-500 focus:ring focus:ring-indigo-200
                                         focus:ring-opacity-50 w-full h-9"
                                         id="role"
                                         name="role"
-                                        placeholder="Investor"
-                                        type="text"
                                         value={role}
-                                        onChange={(e) => setRole(e.target.value)}
-                                    />
+                                        onChange={(e) =>
+                                            setRole(e.target.value)}
+                                    >
+                                        <option value="">Select a role</option>
+                                        <option value="Manager">Manager</option>
+                                        <option value="investor">Investor</option>
+                                        <option value="Engineer">Engineer</option>
+                                    </select>
                                 </div>
+
                                 <div>
-                                    <label className="block font-medium text-gray-700 mb-2" htmlFor="stakeholderAddress">
+                                    <label
+                                        className="block font-medium text-gray-700 mb-2"
+                                        htmlFor="address"
+                                    >
                                         Stakeholder Address
                                     </label>
                                     <input
                                         className="border-gray-300 text-gray-600 rounded-md shadow-sm
                                         focus:border-indigo-500 focus:ring focus:ring-indigo-200
                                         focus:ring-opacity-50 w-full h-9"
-                                        id="stakeholderAddress"
-                                        name="stakeholderAddress"
-                                        placeholder="0xabc123..."
+                                        id="address"
+                                        name="address"
+                                        placeholder="0x123456789..."
                                         type="text"
                                         value={stakeholderAddress}
-                                        onChange={(e) => setStakeholderAddress(e.target.value)}
+                                        onChange={(e) =>
+                                            setStakeholderAddress(e.target.value)}
                                     />
                                 </div>
                             </form>
                             <div className="mt-6 flex justify-end">
                                 <button
-                                    className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-md shadow-md"
+                                    className="bg-indigo-500 hover:bg-indigo-600 text-white f
+                                    ont-medium py-2 px-4 rounded-md"
                                     onClick={whitelistAddress}
                                 >
-                                    Whitelist Address
+                                    Whitelist
                                 </button>
                             </div>
                         </div>
                     </section>
+
                     <section className="mb-12">
+                        <h2 className="text-2xl font-bold mb-4">Stakeholder Claims</h2>
                         <div className="bg-white rounded-lg shadow-md p-6">
                             <form className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
                                 <div>
-                                    <label className="block font-medium text-gray-700 mb-2" htmlFor="indexTwo">
-                                        Index
+                                    <label
+                                        className="block font-medium text-gray-700 mb-2"
+                                        htmlFor="indexTwo"
+                                    >
+                                        Contract Index
                                     </label>
                                     <input
-                                        className="border-gray-300 text-gray-600 rounded-md shadow-sm
-                                        focus:border-indigo-500 focus:ring focus:ring-indigo-200
+                                        className="border-gray-300 text-gray-600 rounded-md
+                                        shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200
                                         focus:ring-opacity-50 w-full h-9"
                                         id="indexTwo"
                                         name="indexTwo"
                                         placeholder="0"
-                                        type="text"
+                                        type="number"
                                         value={indexTwo}
-                                        onChange={(e) => setIndexTwo(e.target.value)}
+                                        onChange={(e) =>
+                                            setIndexTwo(e.target.value)}
                                     />
                                 </div>
                                 <div>
-                                    <label className="block font-medium text-gray-700 mb-2" htmlFor="claimAddress">
-                                        Claim Address
+                                    <label
+                                        className="block font-medium text-gray-700 mb-2"
+                                        htmlFor="address"
+                                    >
+                                        Stakeholder Address
                                     </label>
                                     <input
                                         className="border-gray-300 text-gray-600 rounded-md shadow-sm
                                         focus:border-indigo-500 focus:ring focus:ring-indigo-200
                                         focus:ring-opacity-50 w-full h-9"
-                                        id="claimAddress"
-                                        name="claimAddress"
-                                        placeholder="0xabc123..."
+                                        id="address"
+                                        name="address"
+                                        placeholder="0x123456789..."
                                         type="text"
                                         value={claimAddress}
-                                        onChange={(e) => setClaimAddress(e.target.value)}
+                                        onChange={(e) =>
+                                            setClaimAddress(e.target.value)}
                                     />
                                 </div>
                             </form>
                             <div className="mt-6 flex justify-end">
                                 <button
-                                    className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-md shadow-md"
+                                    className="bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-2 px-4 rounded-md"
                                     onClick={stakeholderClaimBenefit}
                                 >
                                     Claim Benefit
@@ -359,45 +412,56 @@ export default function Component() {
                             </div>
                         </div>
                     </section>
-                    <section>
+                    <section className="mb-12">
+                        <h2 className="text-2xl font-bold mb-4">Check Balance</h2>
                         <div className="bg-white rounded-lg shadow-md p-6">
                             <form className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block font-medium text-gray-700 mb-2" htmlFor="indexThree">
-                                        Index
+                                    <label
+                                        className="block font-medium text-gray-700 mb-2"
+                                        htmlFor="indexThree"
+                                    >
+                                        Contract Index
                                     </label>
                                     <input
-                                        className="border-gray-300 text-gray-600 rounded-md shadow-sm
-                                        focus:border-indigo-500 focus:ring focus:ring-indigo-200
+                                        className="border-gray-300 text-gray-600 rounded-md
+                                        shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200
                                         focus:ring-opacity-50 w-full h-9"
                                         id="indexThree"
                                         name="indexThree"
                                         placeholder="0"
-                                        type="text"
+                                        type="number"
                                         value={indexThree}
-                                        onChange={(e) => setIndexThree(e.target.value)}
+                                        onChange={(e) =>
+                                            setIndexThree(e.target.value)}
                                     />
                                 </div>
+
                                 <div>
-                                    <label className="block font-medium text-gray-700 mb-2" htmlFor="balAddress">
-                                        Balance Address
+                                    <label
+                                        className="block font-medium text-gray-700 mb-2"
+                                        htmlFor="address"
+                                    >
+                                        Stakeholder Address
                                     </label>
                                     <input
                                         className="border-gray-300 text-gray-600 rounded-md shadow-sm
                                         focus:border-indigo-500 focus:ring focus:ring-indigo-200
                                         focus:ring-opacity-50 w-full h-9"
-                                        id="balAddress"
-                                        name="balAddress"
-                                        placeholder="0xabc123..."
+                                        id="address"
+                                        name="address"
+                                        placeholder="0x123456789..."
                                         type="text"
                                         value={balAddress}
-                                        onChange={(e) => setBalAddress(e.target.value)}
+                                        onChange={(e) =>
+                                            setBalAddress(e.target.value)}
                                     />
                                 </div>
                             </form>
                             <div className="mt-6 flex justify-end">
                                 <button
-                                    className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-md shadow-md"
+                                    className="bg-indigo-500 hover:bg-indigo-600
+                                    text-white font-medium py-2 px-4 rounded-md"
                                     onClick={balanceOf}
                                 >
                                     Check Balance
@@ -408,9 +472,14 @@ export default function Component() {
                 </main>
             ) : (
                 <main className="container mx-auto my-12 px-4 sm:px-6 lg:px-8">
-                    <div className="bg-white rounded-lg shadow-md p-6">
-                        <p className="text-center text-gray-500">Please connect your wallet to use the application.</p>
-                    </div>
+                    <section className="mb-12">
+                        <div className="bg-white rounded-lg shadow-md p-6">
+                            <h2 className="text-2xl font-bold mb-4">Connect to a Wallet</h2>
+                            <p className="text-gray-700 mb-4">
+                                To use this application, you need to connect to a wallet.
+                            </p>
+                        </div>
+                    </section>
                 </main>
             )}
         </>
