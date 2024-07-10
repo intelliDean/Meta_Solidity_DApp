@@ -1,45 +1,34 @@
-# VESTING CONTRACT DAPP
+# Vesting Factory Contract
 
-This Solidity program is a full stack "Vesting contract" application that implements the factory contract model to allow individuals to create vesting contracts. It has a frontend fully integrated with smart contracts.
+Vesting contract is a simple Solidity dApp with full frontend and smart contract integrated together for smooth user experience.
 
 ## Description
 
-This program consists of a set of smart contracts written in Solidity, a programming language used for developing smart contracts on the Ethereum blockchain. The main contract is a factory contract that deploys new instances of a child vesting contract. Individuals can use these contracts to create vesting plans on behalf of their company’s staff or stakeholders. The contract implements a time lock system, which prevents users from withdrawing vested tokens before the allocated unlock time.
+This vesting contract implements factory contract that enable anyone to create their own organization vesting contract, have full control over it and add their own stakeholders as well as whilelist any address, aside addresss zero, to benefit from these. The stakeholders can in turn claim their benefi at the end of the vesting period.
 
-## CONTRACT ADDRESSES (SEPOLIA)
-FACTORY CONTRACT: 0x279Bc00CB4197C7693D1121EEE26DF1B93b154E8;
+The whole vesting contract is powered and controlled by one contract and that's the factory contract. The factory contract has 4 functions.
 
-### Executing program
-#### STEP 1
-- CREATE A VESTING ORGANIZATION.
+- createVestingInstance(): This funcion is responsible for the creation and deployment of any vesting contract creation. It deploys all the individual vesting contract but independent of each other, with each having a different contrat address.
 
-Deploy the factory contract to create a new instance of the vesting contract and the associated ERC20 token contract.
+- whitelistAddress(): Allows the owner of the vesting contract created to whitelist address designated as a stakeholder address, and it does this by using the vesting contract index.
 
-#### STEP 2
-- CREATE VESTING PLANS FOR USERS.
+- stakeholderClaimBenefit(): Allows a stakeholder that has been whitelisted to claim their benefit at the end of their vesting period.
 
-Add predefined vesting schedules for various roles within the organization.
+- balanceOf(): Allows a stakeholder to check their balance of the benefit.
 
-#### STEP 3
-- USERS CAN WITHDRAW VESTED TOKENS AFTER THEIR TIMELOCK PERIOD.
+##Getting Started
+- Clone the project
+- After cloning the project, type ```cd frontend``` to change directory into the frontend environment. When inside the frontend directory, type ```npm i``` to install necessary dependencies.
+- After that type ```cd ..``` to go back to the home directory. When in home directory, type ```cd smart-contract``` to change directory into smart contract. When in smart contract directory, type  ```npm i``` to install all dependencies for the smart contract.
+- When these are done, type ```cd ..``` then ```cd frontend```
+- Type ```npm run build``` to build your next,js code
+- Lastly type ```npm run start``` to start your frontend
+- Interest with the smart contract from the frontend
 
-Once the timelock period is over, users can withdraw their vested tokens.
-
-## CONTRACT DETAILS
-- VestingFactory Contract
-This contract is responsible for creating new vesting instances.
-
-- OrganizationToken Contract
-This contract is an ERC20 token contract that mints the total supply to the contract creator.
-
-- Vesting Contract
-This contract handles the vesting logic, allowing users to register for vesting schedules and withdraw tokens after the vesting period.
+## Factory Contract Address:   (Sepolia Testnet): 0x1901cc67055A6bE3238d0fc1c2dEc3a62CFEb8d5
 
 ## Authors
-
-EKARIKA NSEMEKE
-
+Michael Dean Oyewole
 
 ## License
-
 This project is licensed under the MIT License - see the LICENSE.md file for details
