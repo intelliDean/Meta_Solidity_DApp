@@ -25,7 +25,8 @@ The whole vesting contract is powered and controlled by one contract and that's 
 - Lastly type ```npm run start``` to start your frontend
 - Interest with the smart contract from the frontend
 
-## Factory Contract Address:   (Sepolia Testnet): 0x1901cc67055A6bE3238d0fc1c2dEc3a62CFEb8d5
+## Factory Contract Address:   (Sepolia Testnet): 
+0x1901cc67055A6bE3238d0fc1c2dEc3a62CFEb8d5
 
 ## Authors
 Michael Dean Oyewole
